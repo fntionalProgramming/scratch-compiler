@@ -46,9 +46,10 @@ impl<'a> Scanner<'a> {
         return self.current >= (self.source.len() as i32);
     }
     fn advance(&mut self) -> char {
-        let i = self.current + 1;
-        // this should never throw an error
-        return self.source_as_chars.nth(i as usize).unwrap();
+        let c = self.peek();
+        // current is a byte offset, so move by the character's size in bytes
+        self.current += c.len_utf8() as i32;
+        return c;
     }
     fn add_token(&mut self, token_t: TokenType, lit: Literal) {
         let text: &str = &self.source[(self.start as usize)..(self.current as usize)];
@@ -62,7 +63,7 @@ impl<'a> Scanner<'a> {
         if self.is_at_end() {
             return false;
         }
-        if self.source_as_chars.nth(self.current as usize).unwrap() != expected {
+        if self.peek() != expected {
             return false;
         }
         // increment the cuirrent index after
@@ -73,14 +74,29 @@ impl<'a> Scanner<'a> {
         if self.is_at_end() {
             return '\0';
         }
-        return self.source_as_chars.nth(self.current as usize).unwrap();
+        return self.source[(self.current as usize)..].chars().next().unwrap();
     }
-    fn handle_string_literal(&mut self) {
+    fn handle_string_literal(&mut self, lox: &mut Lox) {
         while self.peek() != '"' && !self.is_at_end() {
-            
+            // increase the line when encounter new line
+            if self.peek() == '\n' {
+                self.line += 1;
+            }
+            self.advance();
         }
+
+        // if is_at_end() then non terminated string
+        if self.is_at_end() {
+            lox.error(self.line, "Unterminated string.");
+            return;
+        }
+
+        self.advance();
+
+        let value = &self.source[(self.start as usize + 1)..(self.current as usize - 1)];
+        self.add_token(value, );
     }
-    fn scan_token(&mut self) {
+    fn scan_token(&mut self, lox: &mut Lox) {
         // according to crafting intrepreter, this is the real heat of everything
         let c = self.advance();
         match c {
@@ -142,19 +158,19 @@ impl<'a> Scanner<'a> {
             }
             '\n' => self.line += 1,
             // otherwise errors
-            "\"" => {
-                self.handle_str_literal();
+            '"' => {
+                self.handle_string_literal(lox);
             }
             _ => {
                 println!("This will be changed later so it doesnt matter")
             }
         }
     }
-    pub fn scan_tokens(&mut self) {
+    pub fn scan_tokens(&mut self, lox: &mut Lox) {
         // while not at end then we scan the tokens
         while !Scanner::is_at_end(self) {
             self.start = self.current;
-            self.scan_token();
+            self.scan_token(lox);
         }
         // otherwise mark endline
         self.tokens.push(Token::new(

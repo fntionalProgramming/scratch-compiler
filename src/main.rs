@@ -47,7 +47,7 @@ impl Lox {
                 }
                 i += 1;
             }
-            Lox::run_file(&self, path);
+            self.run_file(path);
         } else {
             Lox::run_prompt(self);
         };
@@ -55,9 +55,9 @@ impl Lox {
 
     // run
     // scan the token
-    fn run(source: &str) {
-        let scanner = Scanner::from(source);
-        let tokens = scanner.scan_tokens();
+    fn run(&mut self, source: &str) {
+        let mut scanner = Scanner::from(source);
+        let tokens = scanner.scan_tokens(self);
         // for now just print the tokens
         for token in &tokens {
             println!("{}", token);
@@ -65,9 +65,9 @@ impl Lox {
     }
     // run_file
     // take the file path name, then go into that file path, scan then rum
-    fn run_file(&self, path: String) -> io::Result<()> {
+    fn run_file(&mut self, path: String) -> io::Result<()> {
         let source = fs::read_to_string(path)?;
-        Lox::run(&source);
+        self.run(&source);
         if self.had_error {
             exit(65);        
         };
@@ -87,7 +87,7 @@ impl Lox {
             if stdin.read_line(&mut line)? == 0 {
                 break; // EOF
             }
-            Lox::run(line.trim_end());
+            self.run(line.trim_end());
             self.had_error = false;
         }
         Ok(())
