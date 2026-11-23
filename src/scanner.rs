@@ -77,7 +77,7 @@ impl<'a> Scanner<'a> {
     }
     fn handle_string_literal(&mut self) {
         while self.peek() != '"' && !self.is_at_end() {
-
+            
         }
     }
     fn scan_token(&mut self) {
