@@ -3,6 +3,11 @@ use core::fmt;
 use crate::token_types::TokenType;
 #[derive(Debug, Clone, PartialEq)]
 
+// --------------------------------------------------------
+//       LITERAL
+// --------------------------------------------------------
+// literal is defined based off the kind of literal that exists in Lox
+
 pub enum Literal {
     Str(String),
     Number(f64),
@@ -21,11 +26,16 @@ impl fmt::Display for Literal {
     }
 }
 
+
+// --------------------------------------------------------
+//       TOKEN
+// --------------------------------------------------------
+
 pub struct Token {
     token_type: TokenType,
     lexeme: String,
     literal: Literal,
-    line: i32,
+    pub(crate) line: i32,
 }
 
 impl Token {
@@ -38,9 +48,6 @@ impl Token {
         }
     }
     pub fn to_string(&self) -> String{
-
-
-
         return format!("{} {} {}", self.token_type, self.lexeme, self.literal)
     }
 }

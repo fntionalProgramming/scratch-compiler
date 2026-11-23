@@ -1,6 +1,6 @@
 // all the token types potentially needed
 
-use std::fmt::{self, write};
+use std::fmt::self;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum TokenType {
