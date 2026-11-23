@@ -42,6 +42,7 @@ impl Scanner {
     + match char, matches the character against the token type
     + peek() -> trivial
     + handle_str_literal() -> handle when there is a string literal
+    + is_digit() -> check if something is a digit or not
     ** */
     fn is_at_end(&self) -> bool {
         return self.current >= (self.source.len() as i32);
@@ -96,6 +97,15 @@ impl Scanner {
 
         let value = &self.source[(self.start as usize + 1)..(self.current as usize - 1)];
         self.add_token(TokenType::Str, Literal::Str(value.to_string()));
+    }
+    fn is_digit(&self, c: char) -> bool {
+        return c.is_ascii_digit();
+    }
+    fn handle_number(&mut self) {
+        // in here we consider both digits and fractional numbers
+        while self.is_digit(self.peek()) {
+            self.advance();
+        }
     }
     fn scan_token(&mut self, lox: &mut Lox) {
         // according to crafting intrepreter, this is the real heat of everything
@@ -163,6 +173,9 @@ impl Scanner {
                 self.handle_string_literal(lox);
             }
             _ => {
+
+                // first case, if it si a diit or not
+
                 println!("This will be changed later so it doesnt matter")
             }
         }
@@ -180,6 +193,7 @@ impl Scanner {
             Literal::Nil,
             self.line,
         ));
+        // return a different value for self.tokens
         return std::mem::take(&mut self.tokens);
     }
 }
