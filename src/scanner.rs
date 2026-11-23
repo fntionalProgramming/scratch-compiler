@@ -1,8 +1,8 @@
-use std::str::Chars;
-
+use crate::Lox;
 use crate::token::Literal;
 use crate::token::Token;
 use crate::token_types::TokenType;
+use std::str::Chars;
 
 // --------------------------------------------------------
 //       Scanner
@@ -38,6 +38,9 @@ impl<'a> Scanner<'a> {
     some utilities in scan_token involves
     + advance() -> advances a character
     + add_token(type: TokenType, literal: Literal) -> add a token with a specified literal type
+    + match char, matches the character against the token type
+    + peek() -> trivial
+    + handle_str_literal() -> handle when there is a string literal
     ** */
     fn is_at_end(&self) -> bool {
         return self.current >= (self.source.len() as i32);
@@ -51,6 +54,31 @@ impl<'a> Scanner<'a> {
         let text: &str = &self.source[(self.start as usize)..(self.current as usize)];
         self.tokens
             .push(Token::new(token_t, text.to_owned(), lit, self.line));
+    }
+    fn match_char(&mut self, expected: char) -> bool {
+        // base cases
+        // if is at end then no characters to match -> false
+        // if not match as expected. -> false
+        if self.is_at_end() {
+            return false;
+        }
+        if self.source_as_chars.nth(self.current as usize).unwrap() != expected {
+            return false;
+        }
+        // increment the cuirrent index after
+        self.current += 1;
+        return true;
+    }
+    fn peek(&mut self) -> char {
+        if self.is_at_end() {
+            return '\0';
+        }
+        return self.source_as_chars.nth(self.current as usize).unwrap();
+    }
+    fn handle_string_literal(&mut self) {
+        while self.peek() != '"' && !self.is_at_end() {
+
+        }
     }
     fn scan_token(&mut self) {
         // according to crafting intrepreter, this is the real heat of everything
@@ -66,7 +94,60 @@ impl<'a> Scanner<'a> {
             '+' => self.add_token(TokenType::Plus, Literal::Nil),
             ';' => self.add_token(TokenType::Semicolon, Literal::Nil),
             '*' => self.add_token(TokenType::Star, Literal::Nil),
-            _ => {}
+            '!' => {
+                let token_type = if self.match_char('=') {
+                    TokenType::BangEqual
+                } else {
+                    TokenType::Bang
+                };
+                self.add_token(token_type, Literal::Nil);
+            }
+            '=' => {
+                let token_type = if self.match_char('=') {
+                    TokenType::EqualEqual
+                } else {
+                    TokenType::Equal
+                };
+                self.add_token(token_type, Literal::Nil);
+            }
+            '<' => {
+                let token_type = if self.match_char('=') {
+                    TokenType::LessEqual
+                } else {
+                    TokenType::Less
+                };
+                self.add_token(token_type, Literal::Nil);
+            }
+            '>' => {
+                let token_type = if self.match_char('=') {
+                    TokenType::GreaterEqual
+                } else {
+                    TokenType::Greater
+                };
+                self.add_token(token_type, Literal::Nil);
+            }
+            // handle longer lexemes
+            // specifically when we encounter an lexmes for comments
+            '/' => {
+                if self.match_char('/') {
+                    while self.peek() != '\n' && !self.is_at_end() {
+                        self.advance();
+                    }
+                } else {
+                    self.add_token(TokenType::Slash, Literal::Nil);
+                }
+            }
+            ' ' | '\r' | '\t' => {
+                // ignore all type of whitespace
+            }
+            '\n' => self.line += 1,
+            // otherwise errors
+            "\"" => {
+                self.handle_str_literal();
+            }
+            _ => {
+                println!("This will be changed later so it doesnt matter")
+            }
         }
     }
     pub fn scan_tokens(&mut self) {
