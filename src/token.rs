@@ -1,11 +1,6 @@
 use core::fmt;
-use std::fmt::format;
 
 use crate::token_types::TokenType;
-
-
-
-
 #[derive(Debug, Clone, PartialEq)]
 
 pub enum Literal {
