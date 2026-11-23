@@ -3,15 +3,38 @@ use std::fmt::format;
 
 use crate::token_types::TokenType;
 
+
+
+
+#[derive(Debug, Clone, PartialEq)]
+
+pub enum Literal {
+    Str(String),
+    Number(f64),
+    Bool(bool),
+    Nil,
+}
+
+impl fmt::Display for Literal {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Literal::Str(s) => f.pad(s),
+            Literal::Number(n) => fmt::Display::fmt(n, f),
+            Literal::Bool(b) => fmt::Display::fmt(b, f),
+            Literal::Nil => f.pad("nil"),
+        }
+    }
+}
+
 pub struct Token {
     token_type: TokenType,
     lexeme: String,
-    literal: Box<dyn std::any::Any>,
+    literal: Literal,
     line: i32,
 }
 
 impl Token {
-    pub fn new(token_type: TokenType, lexeme: String, literal: Box<dyn std::any::Any>, line: i32) -> Self {
+    pub fn new(token_type: TokenType, lexeme: String, literal: Literal, line: i32) -> Self {
         Token { 
             token_type, 
             lexeme, 
@@ -20,6 +43,9 @@ impl Token {
         }
     }
     pub fn to_string(&self) -> String{
+
+
+
         return format!("{} {} {}", self.token_type, self.lexeme, self.literal)
     }
 }

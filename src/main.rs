@@ -5,10 +5,12 @@ use std::process::exit;
 
 mod token_types;
 mod token;
+mod scanner;
 
 // take all the stuff in token_types
 use token_types::TokenType::*;
 use token::Token;
+use scanner::Scanner;
 
 
 pub struct Lox {
