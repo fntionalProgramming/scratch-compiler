@@ -94,8 +94,8 @@ impl Scanner {
 
         self.advance();
 
-        let value = self.source[(self.start as usize + 1)..(self.current as usize - 1)].to_owned();
-        self.add_token(TokenType::Str, Literal::Str(value));
+        let value = &self.source[(self.start as usize + 1)..(self.current as usize - 1)];
+        self.add_token(TokenType::Str, Literal::Str(value.to_string()));
     }
     fn scan_token(&mut self, lox: &mut Lox) {
         // according to crafting intrepreter, this is the real heat of everything
