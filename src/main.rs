@@ -3,13 +3,11 @@ use std::io;
 use std::io::Write;
 use std::process::exit;
 
+mod literal;
 mod token_types;
 mod token;
 mod scanner;
 
-// take all the stuff in token_types
-use token_types::TokenType::*;
-use token::Token;
 use scanner::Scanner;
 
 
@@ -56,7 +54,7 @@ impl Lox {
     // run
     // scan the token
     fn run(&mut self, source: &str) {
-        let mut scanner = Scanner::from(source);
+        let mut scanner = Scanner::new(source);
         let tokens = scanner.scan_tokens(self);
         // for now just print the tokens
         for token in &tokens {

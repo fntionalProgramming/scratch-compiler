@@ -1,18 +1,15 @@
 use crate::Lox;
-use crate::token::Literal;
+use crate::literal::Literal;
 use crate::token::Token;
 use crate::token_types::TokenType;
-use std::str::Chars;
 
 // --------------------------------------------------------
 //       Scanner
 // --------------------------------------------------------
 // scanner effectively scan the code, parse it then potentiall converts it to a list of tokens
-pub struct Scanner<'a> {
+pub struct Scanner {
     // the source text that is to be scan
     source: String,
-    // for the ase of indexing
-    source_as_chars: Chars<'a>,
     // the vector of token that the scanner will converts the source into
     tokens: Vec<Token>,
     // for keeping track of where the scanner is in the file
@@ -21,11 +18,15 @@ pub struct Scanner<'a> {
     line: i32,
 }
 
-impl<'a> Scanner<'a> {
-    pub fn new(&mut self, source: &'a String) {
-        self.source = source.to_string();
-        self.source_as_chars = source.chars();
-        self.tokens = Vec::new();
+impl Scanner {
+    pub fn new(source: &str) -> Self {
+        Scanner {
+            source: source.to_string(),
+            tokens: Vec::new(),
+            start: 0,
+            current: 0,
+            line: 1,
+        }
     }
 
     /* **
@@ -93,8 +94,8 @@ impl<'a> Scanner<'a> {
 
         self.advance();
 
-        let value = &self.source[(self.start as usize + 1)..(self.current as usize - 1)];
-        self.add_token(value, );
+        let value = self.source[(self.start as usize + 1)..(self.current as usize - 1)].to_owned();
+        self.add_token(TokenType::Str, Literal::Str(value));
     }
     fn scan_token(&mut self, lox: &mut Lox) {
         // according to crafting intrepreter, this is the real heat of everything
@@ -166,7 +167,7 @@ impl<'a> Scanner<'a> {
             }
         }
     }
-    pub fn scan_tokens(&mut self, lox: &mut Lox) {
+    pub fn scan_tokens(&mut self, lox: &mut Lox) -> Vec<Token> {
         // while not at end then we scan the tokens
         while !Scanner::is_at_end(self) {
             self.start = self.current;
@@ -179,5 +180,6 @@ impl<'a> Scanner<'a> {
             Literal::Nil,
             self.line,
         ));
+        return std::mem::take(&mut self.tokens);
     }
 }
