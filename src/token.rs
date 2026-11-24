@@ -12,11 +12,11 @@ pub struct Token {
     token_type: TokenType,
     lexeme: String,
     literal: Literal,
-    pub(crate) line: i32,
+    pub(crate) line: usize,
 }
 
 impl Token {
-    pub fn new(token_type: TokenType, lexeme: String, literal: Literal, line: i32) -> Self {
+    pub fn new(token_type: TokenType, lexeme: String, literal: Literal, line: usize) -> Self {
         Token { 
             token_type, 
             lexeme, 

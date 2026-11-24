@@ -7,21 +7,21 @@ use crate::token_types::TokenType;
 //       Scanner
 // --------------------------------------------------------
 // scanner effectively scan the code, parse it then potentiall converts it to a list of tokens
-pub struct Scanner {
+pub struct Scanner<'a> {
     // the source text that is to be scan
-    source: String,
+    source: &'a str,
     // the vector of token that the scanner will converts the source into
     tokens: Vec<Token>,
     // for keeping track of where the scanner is in the file
-    start: i32,
-    current: i32,
-    line: i32,
+    start: usize,
+    current: usize,
+    line: usize,
 }
 
-impl Scanner {
-    pub fn new(source: &str) -> Self {
+impl<'a> Scanner<'a> {
+    pub fn new(source: &'a str) -> Self {
         Scanner {
-            source: source.to_string(),
+            source,
             tokens: Vec::new(),
             start: 0,
             current: 0,
@@ -45,16 +45,16 @@ impl Scanner {
     + is_digit() -> check if something is a digit or not
     ** */
     fn is_at_end(&self) -> bool {
-        return self.current >= (self.source.len() as i32);
+        return self.current >= self.source.len();
     }
     fn advance(&mut self) -> char {
         let c = self.peek();
         // current is a byte offset, so move by the character's size in bytes
-        self.current += c.len_utf8() as i32;
+        self.current += c.len_utf8();
         return c;
     }
     fn add_token(&mut self, token_t: TokenType, lit: Literal) {
-        let text: &str = &self.source[(self.start as usize)..(self.current as usize)];
+        let text: &str = &self.source[self.start..self.current];
         self.tokens
             .push(Token::new(token_t, text.to_owned(), lit, self.line));
     }
@@ -72,11 +72,11 @@ impl Scanner {
         self.current += 1;
         return true;
     }
-    fn peek(&mut self) -> char {
+    fn peek(&self) -> char {
         if self.is_at_end() {
             return '\0';
         }
-        return self.source[(self.current as usize)..].chars().next().unwrap();
+        return self.source[self.current..].chars().next().unwrap();
     }
     fn handle_string_literal(&mut self, lox: &mut Lox) {
         while self.peek() != '"' && !self.is_at_end() {
@@ -89,13 +89,13 @@ impl Scanner {
 
         // if is_at_end() then non terminated string
         if self.is_at_end() {
-            lox.error(self.line, "Unterminated string.");
+            lox.error(self.line as i32, "Unterminated string.");
             return;
         }
 
         self.advance();
 
-        let value = &self.source[(self.start as usize + 1)..(self.current as usize - 1)];
+        let value = &self.source[(self.start + 1)..(self.current - 1)];
         self.add_token(TokenType::Str, Literal::Str(value.to_string()));
     }
     fn is_digit(&self, c: char) -> bool {
@@ -175,6 +175,7 @@ impl Scanner {
             _ => {
 
                 // first case, if it si a diit or not
+        
 
                 println!("This will be changed later so it doesnt matter")
             }
