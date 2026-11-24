@@ -2,7 +2,7 @@
 
 use std::fmt::self;
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TokenType {
     // Single-character tokens.
     LeftParen,
@@ -52,6 +52,7 @@ pub enum TokenType {
 
     Eof,
 }
+
 
 // implement formating
 impl fmt::Display for TokenType {

@@ -1,6 +1,10 @@
 use crate::literal::Literal;
 use crate::token_types::TokenType;
+use std::collections::HashMap;
 use std::fmt;
+use std::sync::LazyLock;
+
+
 
 #[derive(Debug, Clone, PartialEq)]
 
