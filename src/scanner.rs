@@ -3,7 +3,7 @@
 use std::collections::HashMap;
 use std::sync::LazyLock;
 
-use crate::Lox;
+use crate::error::{ScanError, ScanErrorKind};
 use crate::literal::Literal;
 use crate::token::Token;
 use crate::token_types::TokenType;
@@ -35,31 +35,52 @@ static KEYWORDS: LazyLock<HashMap<&'static str, TokenType>> = LazyLock::new(|| {
 });
 
 
-#[allow(unused)]
-// safe conversion for number without unwrap
-fn safe_convert_str_to_float(t: &str) -> f64 {
+// safe conversion for number by hand, without unwrap or parse
+// returns None when the text isn't a number or is too large to fit in an f64
+fn safe_convert_str_to_float(t: &str) -> Option<f64> {
+    // once the number is this big, more fraction digits are too small to matter
+    const MAX_USEFUL: f64 = 1e17;
+    // 10^22 is the largest power of 10 that an f64 stores exactly
+    const MAX_EXACT_POWER: usize = 22;
+
     let mut number: f64 = 0.0;
-    let t_bytes = t.as_bytes();
-    let mut i: usize = 1;
-    // note that if there is no fractional, 
-    while i <= t_bytes.len() {
-        // second iteration iterating over the decimal parts
-        if t_bytes[i] as char == '.' {
-            while i <= t_bytes.len() {
-                number += ((t_bytes[i - 1] - b'0') * 10_u8.pow((i as u32) + 1)) as f64 / 100.0;
-                // increment the index
-                i += 1;
-            }
-            // break when done
-            break;
+    let mut fraction_digits: usize = 0;
+    let mut in_fraction = false;
+
+    // read every digit as one whole number, so 12.5 becomes 125
+    for byte in t.bytes() {
+        if byte == b'.' && !in_fraction {
+            in_fraction = true;
+            continue;
         }
-        // bytes conversion
-        // and also weird trick for exponentiating
-        number += ((t_bytes[i - 1] - b'0') * 10_u8.pow((i as u32) + 1)) as f64;
-        // incremental 
-        i += 1;
+        if !byte.is_ascii_digit() {
+            return None;
+        }
+        if in_fraction {
+            if number >= MAX_USEFUL {
+                continue;
+            }
+            fraction_digits += 1;
+        }
+        number = number * 10.0 + f64::from(byte - b'0');
     }
-    return number;
+
+    // then move the decimal point back, so 125 becomes 12.5
+    // one exact division keeps values like 0.1 correctly rounded
+    while fraction_digits > 0 {
+        let step = fraction_digits.min(MAX_EXACT_POWER);
+        let mut divisor: f64 = 1.0;
+        for _ in 0..step {
+            divisor *= 10.0;
+        }
+        number /= divisor;
+        fraction_digits -= step;
+    }
+
+    if number.is_finite() {
+        return Some(number);
+    }
+    return None;
 }
 
 // --------------------------------------------------------
@@ -72,9 +93,16 @@ pub struct Scanner<'a> {
     source_as_bytes: &'a [u8],
     // the vector of token that the scanner will converts the source into
     tokens: Vec<Token>,
+    // every error found so far, so one run can report all of them
+    errors: Vec<ScanError>,
     start: usize,
     current: usize,
     line: usize,
+    // byte offset where the current line begins
+    line_start: usize,
+    // where the token being scanned begins, since strings can span lines
+    token_line: usize,
+    token_line_start: usize,
 }
 
 impl<'a> Scanner<'a> {
@@ -84,9 +112,13 @@ impl<'a> Scanner<'a> {
             source,
             source_as_bytes: s,
             tokens: Vec::new(),
+            errors: Vec::new(),
             start: 0,
             current: 0,
             line: 1,
+            line_start: 0,
+            token_line: 1,
+            token_line_start: 0,
         }
     }
 
@@ -108,6 +140,7 @@ impl<'a> Scanner<'a> {
     + is_alpha() -> check if the chracter is alpha numeric or not
     + handle_identifier() -> check if the token is an identifer or not
     + is_alpha_numeric() -> check ifsomething is alpha numeric or not
+    + error() -> record an error at the start of the current token
     ** */
     fn is_at_end(&self) -> bool {
         return self.current >= self.source.len();
@@ -116,12 +149,22 @@ impl<'a> Scanner<'a> {
         let c = self.peek();
         // current is a byte offset, so move by the character's size in bytes
         self.current += c.len_utf8();
+        // the only place lines are counted, so line and column always agree
+        if c == '\n' {
+            self.line += 1;
+            self.line_start = self.current;
+        }
         return c;
     }
     fn add_token(&mut self, token_t: TokenType, lit: Literal) {
         let text: &str = &self.source[self.start..self.current];
         self.tokens
-            .push(Token::new(token_t, text.to_owned(), lit, self.line));
+            .push(Token::new(token_t, text.to_owned(), lit, self.token_line));
+    }
+    fn error(&mut self, kind: ScanErrorKind) {
+        // columns count characters, so non-ASCII text doesn't shift them
+        let column = self.source[self.token_line_start..self.start].chars().count() + 1;
+        self.errors.push(ScanError::new(kind, self.token_line, column));
     }
     fn match_char(&mut self, expected: char) -> bool {
         // base cases
@@ -141,20 +184,23 @@ impl<'a> Scanner<'a> {
         if self.is_at_end() {
             return '\0';
         }
-        return self.source_as_bytes[self.current] as char;
+        // ascii is one byte, so keep the fast path for almost all source code
+        let byte = self.source_as_bytes[self.current];
+        if byte.is_ascii() {
+            return byte as char;
+        }
+        // anything else takes multiple bytes, so decode the whole character
+        return self.source[self.current..].chars().next().unwrap_or('\0');
     }
-    fn handle_string_literal(&mut self, lox: &mut Lox) {
+    fn handle_string_literal(&mut self) {
+        // advance() counts any new lines inside the string
         while self.peek() != '"' && !self.is_at_end() {
-            // increase the line when encounter new line
-            if self.peek() == '\n' {
-                self.line += 1;
-            }
             self.advance();
         }
 
         // if is_at_end() then non terminated string
         if self.is_at_end() {
-            lox.error(self.line as i32, "Unterminated string.");
+            self.error(ScanErrorKind::UnterminatedString);
             return;
         }
         self.advance();
@@ -184,7 +230,10 @@ impl<'a> Scanner<'a> {
             }
         }
         let new_num = &self.source[self.start..self.current];
-        self.add_token(TokenType::Number, Literal::Number(safe_convert_str_to_float(new_num)));
+        match safe_convert_str_to_float(new_num) {
+            Some(number) => self.add_token(TokenType::Number, Literal::Number(number)),
+            None => self.error(ScanErrorKind::NumberTooLarge),
+        }
     }
     fn is_alpha(&self, c: char) -> bool {
         return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_';
@@ -199,12 +248,17 @@ impl<'a> Scanner<'a> {
         // after tscanning the identifier, we want to know that if it matches anyhting in the list
         let text = &self.source[self.start..self.current];
         if let Some(&ty) = KEYWORDS.get(text) {
-            self.add_token(ty, Literal::Nil);
+            let literal = match ty {
+                TokenType::True => Literal::Bool(true),
+                TokenType::False => Literal::Bool(false),
+                _ => Literal::Nil,
+            };
+            self.add_token(ty, literal);
         } else {
             self.add_token(TokenType::Identifier, Literal::Nil);
         }
     }
-    fn scan_token(&mut self, lox: &mut Lox) {
+    fn scan_token(&mut self) {
         // according to crafting intrepreter, this is the real heat of everything
         let c = self.advance();
         match c {
@@ -261,13 +315,12 @@ impl<'a> Scanner<'a> {
                     self.add_token(TokenType::Slash, Literal::Nil);
                 }
             }
-            ' ' | '\r' | '\t' => {
-                // ignore all type of whitespace
+            ' ' | '\r' | '\t' | '\n' => {
+                // ignore all type of whitespace, advance() already counted the new line
             }
-            '\n' => self.line += 1,
             // otherwise errors
             '"' => {
-                self.handle_string_literal(lox);
+                self.handle_string_literal();
             }
             _ => {
                 // first case, if it si a diit or not
@@ -277,18 +330,22 @@ impl<'a> Scanner<'a> {
                     self.handle_identifer();
                 } 
                 else {
-                    lox.error(self.line.try_into().unwrap(), "Unexpected character ");
+                    self.error(ScanErrorKind::UnexpectedCharacter(c));
                 }
-
-                println!("This will be changed later so it doesnt matter")
             }
         }
     }
-    pub fn scan_tokens(&mut self, lox: &mut Lox) -> Vec<Token> {
+    pub fn scan_tokens(&mut self) -> Result<Vec<Token>, Vec<ScanError>> {
         // while not at end then we scan the tokens
         while !Scanner::is_at_end(self) {
             self.start = self.current;
-            self.scan_token(lox);
+            self.token_line = self.line;
+            self.token_line_start = self.line_start;
+            self.scan_token();
+        }
+        // any error means the tokens can't be trusted
+        if !self.errors.is_empty() {
+            return Err(std::mem::take(&mut self.errors));
         }
         // otherwise mark endline
         self.tokens.push(Token::new(
@@ -298,6 +355,6 @@ impl<'a> Scanner<'a> {
             self.line,
         ));
         // return a different value for self.tokens
-        return std::mem::take(&mut self.tokens);
+        return Ok(std::mem::take(&mut self.tokens));
     }
 }

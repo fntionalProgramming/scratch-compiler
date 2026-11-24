@@ -1,115 +1,94 @@
+use std::env;
+use std::ffi::OsString;
 use std::fs;
 use std::io;
 use std::io::Write;
-use std::process::exit;
+use std::path::Path;
+use std::process::ExitCode;
 
+mod error;
 mod literal;
 mod token_types;
 mod token;
 mod scanner;
 
+use error::LoxError;
 use scanner::Scanner;
 
 
-pub struct Lox {
-    // states if there is an error or no
-    had_error: bool
-}
-
-impl Default for Lox {
-    fn default() -> Self {
-        Self {
-            had_error: false,
-        }
-    }
-}
+pub struct Lox;
 
 impl Lox {
-    pub fn main(&mut self, args: String) {
-        if args.len() > 1 {
-            println!("Usage: jlox [script]");
-            exit(64);
-        } else if args.len() == 1 {
-            let mut path = String::from("");
-            let mut chars_handled = args.chars();
-            let mut i = 0;
-            // since the otherway of getting the first string in a String is too hard
-            // we grab it by copying
-            // also notice the code will panic if we type a space as the first character
-            while i <= args.len() - 1 {
-                let c = chars_handled.nth(i).unwrap();
-                if c == ' ' {
-                    break;
-                } else {
-                    path.push_str(&c.to_string());
-                }
-                i += 1;
-            }
-            self.run_file(path);
-        } else {
-            Lox::run_prompt(self);
-        };
+    // no arguments opens the prompt, one argument runs that file
+    pub fn main(args: &[OsString]) -> Result<(), LoxError> {
+        match args {
+            [] => Lox::run_prompt(),
+            [path] => Lox::run_file(Path::new(path)),
+            _ => Err(LoxError::Usage),
+        }
     }
 
     // run
     // scan the token
-    fn run(&mut self, source: &str) {
-        let mut scanner = Scanner::new(source);
-        let tokens = scanner.scan_tokens(self);
+    fn run(source: &str) -> Result<(), LoxError> {
+        let tokens = Scanner::new(source).scan_tokens()?;
         // for now just print the tokens
+        let mut stdout = io::stdout().lock();
         for token in &tokens {
-            println!("{}", token);
+            writeln!(stdout, "{}", token)?;
         }
+        Ok(())
     }
     // run_file
     // take the file path name, then go into that file path, scan then rum
-    fn run_file(&mut self, path: String) -> io::Result<()> {
-        let source = fs::read_to_string(path)?;
-        self.run(&source);
-        if self.had_error {
-            exit(65);        
-        };
-        Ok(())
+    fn run_file(path: &Path) -> Result<(), LoxError> {
+        let source = fs::read_to_string(path).map_err(|source| LoxError::ReadFile {
+            path: path.to_path_buf(),
+            source,
+        })?;
+        Lox::run(&source)
     }
     // run_prompt
-    // take in itself, then 
-    fn run_prompt(&mut self) -> io::Result<()> {
+    // a mistake in the code is reported and the prompt keeps going
+    fn run_prompt() -> Result<(), LoxError> {
         let stdin = io::stdin();
+        let mut stdout = io::stdout();
         let mut line = String::new();
 
         loop {
-            print!("> ");
-            io::stdout().flush()?;
+            write!(stdout, "> ")?;
+            stdout.flush()?;
 
             line.clear();
             if stdin.read_line(&mut line)? == 0 {
-                break; // EOF
+                writeln!(stdout)?;
+                return Ok(()); // EOF
             }
-            self.run(line.trim_end());
-            self.had_error = false;
+            match Lox::run(line.trim_end()) {
+                Err(error @ LoxError::Scan(_)) => Lox::report(&error),
+                result => result?,
+            }
         }
-        Ok(())
     }
 
-    // utilities for reporting errors
-    // report essentially just print where the error is
-    fn report(
-        &mut self,
-        line: i32,
-        location: &str,
-        message: &str,
-    ) {
-        println!("[Line: {}], Error: {} {}", line, location, message);
-        self.had_error = true;
-    } 
-    // no idea why this exists
-    pub fn error(&mut self, line: i32, message: &str) {
-        self.report(line, "", message);
+    // report essentially just print the error
+    // this ignores write failures since there is nowhere left to report them
+    fn report(error: &LoxError) {
+        let _ = writeln!(io::stderr(), "{}", error);
     }
 }
 
 
 
-fn main() {
-    println!("Hello world");
+fn main() -> ExitCode {
+    let args: Vec<OsString> = env::args_os().skip(1).collect();
+    match Lox::main(&args) {
+        Ok(()) => ExitCode::SUCCESS,
+        // the reader closed the pipe, for example `main file.lox | head`
+        Err(LoxError::Io(error)) if error.kind() == io::ErrorKind::BrokenPipe => ExitCode::SUCCESS,
+        Err(error) => {
+            Lox::report(&error);
+            ExitCode::from(error.exit_code())
+        }
+    }
 }
