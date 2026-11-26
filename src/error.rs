@@ -56,8 +56,9 @@ impl fmt::Display for ScanError {
     }
 }
 
-impl Error for ScanError {}
 
+
+impl Error for ScanError {}
 // every error that can reach the top of the program
 #[derive(Debug)]
 pub enum LoxError {
