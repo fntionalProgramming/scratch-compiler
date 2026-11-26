@@ -6,7 +6,7 @@ mod token;
 mod scanner;
 mod generate_ast;
 // END USER_DEFINED_MODULES
-// START GENERATE_MODULESg
+// START GENERATE_MODULES
 // END GENERATE_MODULES
 
 use std::env;
