@@ -13,6 +13,8 @@ const EX_USAGE: u8 = 64;
 const EX_DATAERR: u8 = 65;
 const EX_NOINPUT: u8 = 66;
 const EX_IOERR: u8 = 74;
+// special class for stupid errors
+const EX_GENERATE: u8 = 1;
 
 // what went wrong while scanning
 #[derive(Debug, Clone, PartialEq)]
@@ -56,8 +58,6 @@ impl fmt::Display for ScanError {
     }
 }
 
-
-
 impl Error for ScanError {}
 // every error that can reach the top of the program
 #[derive(Debug)]
@@ -67,6 +67,7 @@ pub enum LoxError {
     Io(io::Error),
     // the scanner keeps going after an error, so it can report all of them at once
     Scan(Vec<ScanError>),
+    FileGeneration
 }
 
 impl LoxError {
@@ -76,6 +77,7 @@ impl LoxError {
             LoxError::ReadFile { .. } => EX_NOINPUT,
             LoxError::Io(_) => EX_IOERR,
             LoxError::Scan(_) => EX_DATAERR,
+            LoxError::FileGeneration => EX_GENERATE
         }
     }
 }
@@ -97,6 +99,7 @@ impl fmt::Display for LoxError {
                 }
                 Ok(())
             }
+            LoxError::FileGeneration => write!(f, "error in file generation")
         }
     }
 }
@@ -107,6 +110,7 @@ impl Error for LoxError {
             LoxError::ReadFile { source, .. } => Some(source),
             LoxError::Io(error) => Some(error),
             LoxError::Usage | LoxError::Scan(_) => None,
+            LoxError::FileGeneration => None
         }
     }
 }

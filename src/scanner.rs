@@ -184,7 +184,7 @@ impl<'a> Scanner<'a> {
         if self.is_at_end() {
             return '\0';
         }
-        // ascii is one byte, so keep the fast path for almost all source code
+        // ascii is one byte, so keep the fast path for almost all source
         let byte = self.source_as_bytes[self.current];
         if byte.is_ascii() {
             return byte as char;

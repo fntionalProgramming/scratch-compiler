@@ -11,6 +11,7 @@ mod literal;
 mod token_types;
 mod token;
 mod scanner;
+mod generate_ast;
 
 use error::LoxError;
 use scanner::Scanner;
