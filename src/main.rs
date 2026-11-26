@@ -1,3 +1,14 @@
+// START MODULES
+mod error;
+mod literal;
+mod token_types;
+mod token;
+mod scanner;
+mod generate_ast;
+// END USER_DEFINED_MODULES
+// START GENERATE_MODULESg
+// END GENERATE_MODULES
+
 use std::env;
 use std::ffi::OsString;
 use std::fs;
@@ -5,16 +16,32 @@ use std::io;
 use std::io::Write;
 use std::path::Path;
 use std::process::ExitCode;
-
-mod error;
-mod literal;
-mod token_types;
-mod token;
-mod scanner;
-mod generate_ast;
-
+use std::sync::OnceLock;
 use error::LoxError;
 use scanner::Scanner;
+use generate_ast::{END, MAIN_PATH, START};
+
+// check that main.rs has the START and END marker lines, with START first.
+// the file is only read the first time this is called; after that the saved answer is returned.
+// if main.rs can't be read, this returns false
+fn has_module_markers() -> bool {
+    static HAS_MARKERS: OnceLock<bool> = OnceLock::new();
+    *HAS_MARKERS.get_or_init(|| {
+        let source = match fs::read_to_string(MAIN_PATH) {
+            Ok(source) => source,
+            Err(_) => return false,
+        };
+        let mut found_start = false;
+        for line in source.lines() {
+            if line.trim() == START {
+                found_start = true;
+            } else if found_start && line.trim() == END {
+                return true;
+            }
+        }
+        false
+    })
+}
 
 
 pub struct Lox;
