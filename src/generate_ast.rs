@@ -1,6 +1,6 @@
-use std::{fmt::format, fs::{self, File}, io::{BufWriter, Write}, vec};
+use std::{fmt::{format, write}, fs::{self, File}, io::{BufWriter, Write}, vec};
 
-use crate::error::LoxError;
+use crate::{error::LoxError, token::Token};
 
 // AST code generation
 
@@ -86,22 +86,17 @@ impl GenerateAst {
     fn define_ast(&self, output_dir: &str, base_name: &str, classes: &[(&str, &str)]) 
     -> Result<(), LoxError>
     {
-        let lines = vec![
-            "struct Expr {",
-        ];
         let path = format!("{}/{}.rs", output_dir, base_name);
         let file = File::create(&path)?;
         let mut writer = BufWriter::new(file);
 
-        // write to the file
-        for line in lines {
-            writeln!(writer, "{}", line)?;
-        }
-        writeln!(writer, "{}", "}")?;
+        // the base trait, empty for now
+        writeln!(writer, "trait {} {{}}", base_name)?;
         for class in classes {
             let class_name = &*class.0;
-           let fields = &*class.1;
-            self.define_type(&writer, base_name, class_name, fields);
+            let fields = &*class.1;
+            writeln!(writer)?;
+            self.define_type(&mut writer, base_name, class_name, fields)?;
         }
         // write the exact mod_name in main
         // and build the module names
@@ -115,8 +110,55 @@ impl GenerateAst {
         return Ok(());
     }
     // write and define the types
-    fn define_type(&self, writer: &BufWriter<File>, base_name: &str, class_name: &str, field_list: &str) 
+    // turns ("Binary", "Expr left, Token operator, Expr right") into a struct and its new()
+    fn define_type(&self, writer: &mut BufWriter<File>, base_name: &str, class_name: &str, field_list: &str)
+    -> Result<(), LoxError>
     {
-        
+        // split "Expr left, Token operator" into (name, rust type) pairs
+        let mut fields: Vec<(&str, String)> = Vec::new();
+        for field in field_list.split(", ") {
+            let (type_name, name) = match field.split_once(' ') {
+                Some(parts) => parts,
+                None => return Err(LoxError::FileGeneration),
+            };
+            // the base type is a trait, so it has to be boxed to be stored in a struct
+            let rust_type = if type_name == base_name {
+                format!("Box<dyn {}>", base_name)
+            } else {
+                type_name.to_string()
+            };
+            fields.push((name, rust_type));
+        }
+
+        // the struct
+        writeln!(writer, "struct {} {{", class_name)?;
+        for (name, rust_type) in &fields {
+            writeln!(writer, "    pub {}: {},", name, rust_type)?;
+        }
+        writeln!(writer, "}}")?;
+
+        // the constructor
+        writeln!(writer, "impl {} {{", class_name)?;
+        writeln!(writer, "    fn new(")?;
+        for i in 0..fields.len() {
+            let (name, rust_type) = &fields[i];
+            if i + 1 < fields.len() {
+                writeln!(writer, "        {}: {},", name, rust_type)?;
+            } else {
+                writeln!(writer, "        {}: {}) -> Self {{", name, rust_type)?;
+            }
+        }
+        let mut names = String::new();
+        for i in 0..fields.len() {
+            if i > 0 {
+                names.push_str(", ");
+            }
+            names.push_str(fields[i].0);
+        }
+        writeln!(writer, "        {} {{ {} }}", class_name, names)?;
+        writeln!(writer, "    }}")?;
+        writeln!(writer, "}}")?;
+
+        return Ok(());
     }
 }
