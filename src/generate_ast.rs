@@ -120,6 +120,13 @@ impl GenerateAst {
         let file = File::create(&path)?;
         let mut writer = BufWriter::new(file);
 
+        // imports for the types the fields use.
+        // the runtime value type is renamed to Object because the generated
+        // file has its own struct called Literal
+        writeln!(writer, "use crate::literal::Literal as Object;")?;
+        writeln!(writer, "use crate::token::Token;")?;
+        writeln!(writer)?;
+
         for class in classes {
             let class_name = &*class.0;
             let fields = &*class.1;
