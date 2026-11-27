@@ -116,7 +116,8 @@ impl GenerateAst {
     fn define_ast(&self, output_dir: &str, base_name: &str, classes: &[(&str, &str)]) 
     -> Result<(), LoxError>
     {
-        let path = format!("{}/{}.rs", output_dir, base_name);
+        // rust module files are lowercase, so Expr is written to expr.rs
+        let path = format!("{}/{}.rs", output_dir, base_name.to_lowercase());
         let file = File::create(&path)?;
         let mut writer = BufWriter::new(file);
 
@@ -136,12 +137,8 @@ impl GenerateAst {
         self.define_enum(&mut writer, base_name, classes)?;
         writeln!(writer)?;
         self.define_visitor(&mut writer, base_name, classes)?;
-        // write the exact mod_name in main
-        // and build the module names
-        let mut mod_names: Vec<String> = Vec::new();
-        for (mod_name, _) in classes {
-            mod_names.push(format!("mod {};", mod_name));
-        }
+        // everything above lives in one file, so main.rs only needs one mod line for it
+        let mod_names = vec![format!("mod {};", base_name.to_lowercase())];
         self.handle_mod(&mod_names)?;
          // flush so a failed write is reported here instead of being lost when the writer is dropped
         writer.flush()?;
@@ -167,14 +164,12 @@ impl GenerateAst {
             };
             fields.push((name, rust_type));
         }
-
         // the struct
         writeln!(writer, "struct {} {{", class_name)?;
         for (name, rust_type) in &fields {
             writeln!(writer, "    pub {}: {},", name, rust_type)?;
         }
         writeln!(writer, "}}")?;
-
         // the constructor
         writeln!(writer, "impl {} {{", class_name)?;
         writeln!(writer, "    fn new(")?;

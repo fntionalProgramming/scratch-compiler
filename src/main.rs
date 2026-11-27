@@ -7,6 +7,7 @@ mod scanner;
 mod generate_ast;
 // END USER_DEFINED_MODULES
 // START GENERATE_MODULES
+mod expr;
 // END GENERATE_MODULES
 
 use std::env;
