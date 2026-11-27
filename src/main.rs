@@ -3,6 +3,7 @@ mod literal;
 mod token_types;
 mod token;
 mod scanner;
+mod ast_printer;
 use std::env;
 use std::ffi::OsString;
 use std::fs;
@@ -10,7 +11,6 @@ use std::io;
 use std::io::Write;
 use std::path::Path;
 use std::process::ExitCode;
-use std::sync::OnceLock;
 use error::LoxError;
 use scanner::Scanner;
 
