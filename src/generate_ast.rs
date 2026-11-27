@@ -82,6 +82,17 @@ impl GenerateAst {
 
         return Ok(());
     }
+    // writes an enum with one variant per class, each holding that class's struct, e.g.
+    // Binary(Binary),
+    fn define_enum(&self, writer: &mut BufWriter<File>, base_name: &str, classes: &[(&str, &str)])
+    -> Result<(), LoxError>{
+        writeln!(writer, "enum {}<R> {{", base_name)?;
+        for (class_name, _) in classes {
+            writeln!(writer, "    {}({}),", class_name, class_name)?;
+        }
+        writeln!(writer, "}}")?;
+        return Ok(());
+    }
     // writes a Visitor trait with one visit method per class, e.g.
     // fn visit_binary_expr(&mut self, expr: &Binary) -> R;
     fn define_visitor(&self, writer: &mut BufWriter<File>, base_name: &str, classes: &[(&str, &str)])
@@ -117,6 +128,8 @@ impl GenerateAst {
             writeln!(writer)?;
             self.define_type(&mut writer, base_name, class_name, fields)?;
         }
+        writeln!(writer)?;
+        self.define_enum(&mut writer, base_name, classes)?;
         writeln!(writer)?;
         self.define_visitor(&mut writer, base_name, classes)?;
         // write the exact mod_name in main
