@@ -23,6 +23,11 @@ impl Token {
             line: line
         }
     }
+
+    // the exact text from the source, like "-" or "123"
+    pub fn lexeme(&self) -> &str {
+        &self.lexeme
+    }
 }
 
 impl fmt::Display for Token {

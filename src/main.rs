@@ -5,6 +5,7 @@ mod token_types;
 mod token;
 mod scanner;
 mod generate_ast;
+mod ast_printer;
 // END USER_DEFINED_MODULES
 // START GENERATE_MODULES
 mod expr;

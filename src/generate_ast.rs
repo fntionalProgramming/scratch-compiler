@@ -86,7 +86,7 @@ impl GenerateAst {
     // Binary(Binary),
     fn define_enum(&self, writer: &mut BufWriter<File>, base_name: &str, classes: &[(&str, &str)])
     -> Result<(), LoxError>{
-        writeln!(writer, "enum {} {{", base_name)?;
+        writeln!(writer, "pub enum {} {{", base_name)?;
         for (class_name, _) in classes {
             writeln!(writer, "    {}({}),", class_name, class_name)?;
         }
@@ -98,7 +98,7 @@ impl GenerateAst {
     fn define_visitor(&self, writer: &mut BufWriter<File>, base_name: &str, classes: &[(&str, &str)])
     -> Result<(), LoxError>{
         let base_lower = base_name.to_lowercase();
-        writeln!(writer, "trait Visitor<R> {{")?;
+        writeln!(writer, "pub trait Visitor<R> {{")?;
         for (class_name, _) in classes {
             writeln!(
                 writer,
@@ -165,14 +165,14 @@ impl GenerateAst {
             fields.push((name, rust_type));
         }
         // the struct
-        writeln!(writer, "struct {} {{", class_name)?;
+        writeln!(writer, "pub struct {} {{", class_name)?;
         for (name, rust_type) in &fields {
             writeln!(writer, "    pub {}: {},", name, rust_type)?;
         }
         writeln!(writer, "}}")?;
         // the constructor
         writeln!(writer, "impl {} {{", class_name)?;
-        writeln!(writer, "    fn new(")?;
+        writeln!(writer, "    pub fn new(")?;
         for i in 0..fields.len() {
             let (name, rust_type) = &fields[i];
             if i + 1 < fields.len() {
