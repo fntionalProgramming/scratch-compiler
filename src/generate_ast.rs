@@ -86,7 +86,7 @@ impl GenerateAst {
     // Binary(Binary),
     fn define_enum(&self, writer: &mut BufWriter<File>, base_name: &str, classes: &[(&str, &str)])
     -> Result<(), LoxError>{
-        writeln!(writer, "enum {}<R> {{", base_name)?;
+        writeln!(writer, "enum {} {{", base_name)?;
         for (class_name, _) in classes {
             writeln!(writer, "    {}({}),", class_name, class_name)?;
         }
@@ -120,15 +120,12 @@ impl GenerateAst {
         let file = File::create(&path)?;
         let mut writer = BufWriter::new(file);
 
-        // the base trait, empty for now
-        writeln!(writer, "trait {} {{}}", base_name)?;
         for class in classes {
             let class_name = &*class.0;
             let fields = &*class.1;
-            writeln!(writer)?;
             self.define_type(&mut writer, base_name, class_name, fields)?;
+            writeln!(writer)?;
         }
-        writeln!(writer)?;
         self.define_enum(&mut writer, base_name, classes)?;
         writeln!(writer)?;
         self.define_visitor(&mut writer, base_name, classes)?;
@@ -155,9 +152,9 @@ impl GenerateAst {
                 Some(parts) => parts,
                 None => return Err(LoxError::FileGeneration),
             };
-            // the base type is a trait, so it has to be boxed to be stored in a struct
+            // the base type is the enum itself, so it has to be boxed or the type would be infinitely sized
             let rust_type = if type_name == base_name {
-                format!("Box<dyn {}>", base_name)
+                format!("Box<{}>", base_name)
             } else {
                 type_name.to_string()
             };
