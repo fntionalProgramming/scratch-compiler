@@ -4,11 +4,6 @@ mod literal;
 mod token_types;
 mod token;
 mod scanner;
-mod generate_ast;
-mod ast_printer;
-// END USER_DEFINED_MODULES
-// START GENERATE_MODULES
-mod expr;
 // END GENERATE_MODULES
 
 use std::env;
@@ -21,7 +16,6 @@ use std::process::ExitCode;
 use std::sync::OnceLock;
 use error::LoxError;
 use scanner::Scanner;
-use generate_ast::{END, MAIN_PATH, START};
 
 // check that main.rs has the START and END marker lines, with START first.
 // the file is only read the first time this is called; after that the saved answer is returned.
