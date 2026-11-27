@@ -1,6 +1,6 @@
-use std::{fmt::{format, write}, fs::{self, File}, io::{BufWriter, Write}, vec};
+use std::{fs::{self, File}, io::{BufWriter, Write}, vec};
 
-use crate::{error::LoxError, token::Token};
+use crate::error::LoxError;
 
 // AST code generation
 
@@ -82,6 +82,25 @@ impl GenerateAst {
 
         return Ok(());
     }
+    // writes a Visitor trait with one visit method per class, e.g.
+    // fn visit_binary_expr(&mut self, expr: &Binary) -> R;
+    fn define_visitor(&self, writer: &mut BufWriter<File>, base_name: &str, classes: &[(&str, &str)])
+    -> Result<(), LoxError>{
+        let base_lower = base_name.to_lowercase();
+        writeln!(writer, "trait Visitor<R> {{")?;
+        for (class_name, _) in classes {
+            writeln!(
+                writer,
+                "    fn visit_{}_{}(&mut self, {}: &{}) -> R;",
+                class_name.to_lowercase(),
+                base_lower,
+                base_lower,
+                class_name
+            )?;
+        }
+        writeln!(writer, "}}")?;
+        return Ok(());
+    }
     // define the structure of AST
     fn define_ast(&self, output_dir: &str, base_name: &str, classes: &[(&str, &str)]) 
     -> Result<(), LoxError>
@@ -98,6 +117,8 @@ impl GenerateAst {
             writeln!(writer)?;
             self.define_type(&mut writer, base_name, class_name, fields)?;
         }
+        writeln!(writer)?;
+        self.define_visitor(&mut writer, base_name, classes)?;
         // write the exact mod_name in main
         // and build the module names
         let mut mod_names: Vec<String> = Vec::new();
