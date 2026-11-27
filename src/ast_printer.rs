@@ -132,3 +132,7 @@ pub fn main() {
         Err(error) => eprintln!("{}", error),
     }
 }
+
+#[cfg(test)]
+#[path = "../tests/ast_printer_tests.rs"]
+mod tests;
