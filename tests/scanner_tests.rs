@@ -552,8 +552,9 @@ fn convert_rejects_two_dots() {
 #[test]
 fn convert_edge_shapes() {
     // the scanner never passes these, but the function still has to answer something
-    assert_eq!(safe_convert_str_to_float(""), Some(0.0));
-    assert_eq!(safe_convert_str_to_float("."), Some(0.0));
+    // no digits at all isn't a number
+    assert_eq!(safe_convert_str_to_float(""), None);
+    assert_eq!(safe_convert_str_to_float("."), None);
     assert_eq!(safe_convert_str_to_float("5."), Some(5.0));
     assert_eq!(safe_convert_str_to_float(".5"), Some(0.5));
 }

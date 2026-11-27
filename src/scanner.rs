@@ -35,48 +35,28 @@ static KEYWORDS: LazyLock<HashMap<&'static str, TokenType>> = LazyLock::new(|| {
 });
 
 
-// safe conversion for number by hand, without unwrap or parse
-// returns None when the text isn't a number or is too large to fit in an f64
+// safe conversion for number, without unwrap
+// returns None when the text isn't a Lox number or is too large to fit in an f64
 fn safe_convert_str_to_float(t: &str) -> Option<f64> {
-    // once the number is this big, more fraction digits are too small to matter
-    const MAX_USEFUL: f64 = 1e17;
-    // 10^22 is the largest power of 10 that an f64 stores exactly
-    const MAX_EXACT_POWER: usize = 22;
-
-    let mut number: f64 = 0.0;
-    let mut fraction_digits: usize = 0;
-    let mut in_fraction = false;
-
-    // read every digit as one whole number, so 12.5 becomes 125
+    // only accept what Lox allows: digits with at most one dot.
+    // parse on its own would also take things like "1e5", "-1", "inf" and "NaN"
+    let mut seen_dot = false;
     for byte in t.bytes() {
-        if byte == b'.' && !in_fraction {
-            in_fraction = true;
-            continue;
-        }
-        if !byte.is_ascii_digit() {
+        if byte == b'.' && !seen_dot {
+            seen_dot = true;
+        } else if !byte.is_ascii_digit() {
             return None;
         }
-        if in_fraction {
-            if number >= MAX_USEFUL {
-                continue;
-            }
-            fraction_digits += 1;
-        }
-        number = number * 10.0 + f64::from(byte - b'0');
     }
 
-    // then move the decimal point back, so 125 becomes 12.5
-    // one exact division keeps values like 0.1 correctly rounded
-    while fraction_digits > 0 {
-        let step = fraction_digits.min(MAX_EXACT_POWER);
-        let mut divisor: f64 = 1.0;
-        for _ in 0..step {
-            divisor *= 10.0;
-        }
-        number /= divisor;
-        fraction_digits -= step;
-    }
+    // parse rounds correctly for every input, which adding digits one at a
+    // time with number * 10 + digit can't do once numbers get very large
+    let number: f64 = match t.parse() {
+        Ok(number) => number,
+        Err(_) => return None,
+    };
 
+    // too large a number parses to infinity instead of failing
     if number.is_finite() {
         return Some(number);
     }
