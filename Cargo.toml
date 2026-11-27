@@ -2,6 +2,8 @@
 name = "main"
 version = "0.1.0"
 edition = "2024"
+# plain `cargo run` still runs the interpreter; use --bin ast_printer for the printer
+default-run = "main"
 # tests/ holds unit tests pulled in with #[path], not integration tests
 autotests = false
 
