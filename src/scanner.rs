@@ -358,3 +358,7 @@ impl<'a> Scanner<'a> {
         return Ok(std::mem::take(&mut self.tokens));
     }
 }
+
+#[cfg(test)]
+#[path = "../tests/scanner_tests.rs"]
+mod tests;
