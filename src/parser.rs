@@ -1,5 +1,5 @@
-use crate::token::{self, Token};
-use crate::token_types::{self, TokenType};
+use crate::token::Token;
+use crate::token_types::TokenType;
 use crate::ast_printer::*;
 use crate::literal::Literal;
 use crate::error::ParseError;
