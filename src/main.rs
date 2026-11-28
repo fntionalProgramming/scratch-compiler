@@ -4,6 +4,7 @@ mod token_types;
 mod token;
 mod scanner;
 mod ast_printer;
+mod parser;
 use std::env;
 use std::ffi::OsString;
 use std::fs;

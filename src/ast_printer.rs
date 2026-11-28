@@ -19,7 +19,7 @@ use std::fmt;
 // operator       → "==" | "!=" | "<" | "<=" | ">" | ">="
 //                | "+"  | "-"  | "*" | "/" ;
 
-enum Expr {
+pub enum Expr {
     Binary(Binary),
     Grouping(Grouping),
     Unary(Unary),
@@ -27,21 +27,21 @@ enum Expr {
     Literal(Literal),
 }
 
-struct Binary {
+pub struct Binary {
     // usage of Box to avoid recursive pointers
-    left: Box<Expr>,
-    operator: Token,
-    right: Box<Expr>,
+    pub(crate) left: Box<Expr>,
+    pub(crate) operator: Token,
+    pub(crate) right: Box<Expr>,
 }
 
 // parenthesize will be call on grouping
-struct Grouping {
-    middle: Box<Expr>,
+pub struct Grouping {
+    pub(crate) middle: Box<Expr>,
 }
 // Token is restructed to "-" and "!", this will be checked later when it comes to parsing
-struct Unary {
-    oeprator: Token,
-    right: Box<Expr>,
+pub struct Unary {
+    pub(crate) oeprator: Token,
+    pub(crate) right: Box<Expr>,
 }
 
 // --------------------------------------------

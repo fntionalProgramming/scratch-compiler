@@ -28,6 +28,11 @@ impl Token {
     pub fn lexeme(&self) -> &str {
         &self.lexeme
     }
+
+    // TokenType is Copy, so this hands back a copy instead of a reference
+    pub fn token_type(&self) -> TokenType {
+        self.token_type
+    }
 }
 
 impl fmt::Display for Token {
