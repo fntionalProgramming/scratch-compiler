@@ -2,6 +2,7 @@ use crate::token::{self, Token};
 use crate::token_types::{self, TokenType};
 use crate::ast_printer::*;
 use crate::literal::Literal;
+use crate::error::ParseError;
 // -----------------------------------------
 //             PARSER 
 // -----------------------------------------
@@ -57,41 +58,109 @@ impl<'a> Parser<'a> {
         }
     }
 
+    // the entry point: parse the whole token list as one expression
+    pub fn parse(&mut self) -> Result<Expr, ParseError> {
+        return self.expression();
+    }
+
     // implementations of cfg
-    fn expression(&mut self) -> Expr {
+    // every rule returns a Result, and ? passes an error straight up to parse()
+    fn expression(&mut self) -> Result<Expr, ParseError> {
         return self.equality();
     }
-    fn equality(&mut self) -> Expr {
-        // expr for comparision
-        let mut expr = self.comparision();
+    // equality → comparison ( ( "!=" | "==" ) comparison )* ;
+    fn equality(&mut self) -> Result<Expr, ParseError> {
+        let mut expr = self.comparison()?;
         // either operator continues the chain, so this is ||, not &&
         while self.match_types(TokenType::BangEqual) || self.match_types(TokenType::EqualEqual) {
             // Binary owns its Token, so copy it out of the borrowed slice
             let operator = self.previous().clone();
-            let right = self.comparision();
-            expr = Expr::Binary(Binary {
-                left: Box::new(expr),
-                operator: operator,
-                right: Box::new(right)
-            });
+            let right = self.comparison()?;
+            // Expr::binary does the boxing itself
+            expr = Expr::binary(expr, operator, right);
         }
-        return expr
+        return Ok(expr);
     }
-    // placeholder so equality compiles; replace with the real rule
-    fn comparision(&mut self) -> Expr {
-        todo!("comparision")
+    // comparison → term ( ( ">" | ">=" | "<" | "<=" ) term )* ;
+    fn comparison(&mut self) -> Result<Expr, ParseError> {
+        let mut expr = self.term()?;
+        while self.match_types(TokenType::Greater)
+            || self.match_types(TokenType::GreaterEqual)
+            || self.match_types(TokenType::Less)
+            || self.match_types(TokenType::LessEqual)
+        {
+            let operator = self.previous().clone();
+            let right = self.term()?;
+            expr = Expr::binary(expr, operator, right);
+        }
+        return Ok(expr);
     }
-    fn term() {
-    
+    // term → factor ( ( "-" | "+" ) factor )* ;
+    fn term(&mut self) -> Result<Expr, ParseError> {
+        let mut expr = self.factor()?;
+        while self.match_types(TokenType::Minus) || self.match_types(TokenType::Plus) {
+            let operator = self.previous().clone();
+            let right = self.factor()?;
+            expr = Expr::binary(expr, operator, right);
+        }
+        return Ok(expr);
     }
-    fn factor() {
-        
+    // factor → unary ( ( "/" | "*" ) unary )* ;
+    fn factor(&mut self) -> Result<Expr, ParseError> {
+        let mut expr = self.unary()?;
+        while self.match_types(TokenType::Slash) || self.match_types(TokenType::Star) {
+            let operator = self.previous().clone();
+            let right = self.unary()?;
+            expr = Expr::binary(expr, operator, right);
+        }
+        return Ok(expr);
     }
-    fn unary() {
+    // unary → ( "!" | "-" ) unary | primary ;
+    fn unary(&mut self) -> Result<Expr, ParseError> {
+        if self.match_types(TokenType::Bang) || self.match_types(TokenType::Minus) {
+            let operator = self.previous().clone();
+            // unary calls itself, so !!x and --x nest to the right
+            let right = self.unary()?;
+            return Ok(Expr::unary(operator, right));
+        }
+        return self.primary();
+    }
+    // primary → NUMBER | STRING | "true" | "false" | "nil" | "(" expression ")" ;
+    fn primary(&mut self) -> Result<Expr, ParseError> {
+        if self.match_types(TokenType::False) {
+            return Ok(Expr::literal(Literal::Bool(false)));
+        }
+        if self.match_types(TokenType::True) {
+            return Ok(Expr::literal(Literal::Bool(true)));
+        }
+        if self.match_types(TokenType::Nil) {
+            return Ok(Expr::literal(Literal::Nil));
+        }
+        if self.match_types(TokenType::Number) || self.match_types(TokenType::Str) {
+            // the scanner already turned the text into a value, so reuse it
+            return Ok(Expr::literal(self.previous().literal().clone()));
+        }
+        if self.match_types(TokenType::LeftParen) {
+            let expr = self.expression()?;
+            self.consume(TokenType::RightParen, "Expect ')' after expression.")?;
+            return Ok(Expr::grouping(expr));
+        }
+        // nothing above matched, so this token can't start an expression
+        return Err(self.error(self.peek(), "Expect expression."));
+    }
 
+    // advance past a token that has to be there, or report it missing
+    fn consume(&mut self, token_type: TokenType, message: &str) -> Result<&'a Token, ParseError> {
+        if self.check(token_type) {
+            return Ok(self.advance());
+        }
+        return Err(self.error(self.peek(), message));
     }
-    fn primary() {
-
+    fn error(&self, token: &Token, message: &str) -> ParseError {
+        if token.token_type() == TokenType::Eof {
+            return ParseError::new(token.line, None, message);
+        }
+        return ParseError::new(token.line, Some(token.lexeme().to_string()), message);
     }
     // functions aside from the CFG implementations
     // match for one types only

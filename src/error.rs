@@ -59,6 +59,32 @@ impl fmt::Display for ScanError {
 }
 
 impl Error for ScanError {}
+
+// what went wrong while parsing, and the token it went wrong at
+#[derive(Debug, Clone, PartialEq)]
+pub struct ParseError {
+    line: usize,
+    // the token's text, or None when the problem is at the end of the input
+    lexeme: Option<String>,
+    message: String,
+}
+
+impl ParseError {
+    pub fn new(line: usize, lexeme: Option<String>, message: &str) -> Self {
+        ParseError { line, lexeme, message: message.to_string() }
+    }
+}
+
+impl fmt::Display for ParseError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match &self.lexeme {
+            Some(lexeme) => write!(f, "[Line: {}] Error at '{}': {}", self.line, lexeme, self.message),
+            None => write!(f, "[Line: {}] Error at end: {}", self.line, self.message),
+        }
+    }
+}
+
+impl Error for ParseError {}
 // every error that can reach the top of the program
 #[derive(Debug)]
 pub enum LoxError {

@@ -33,6 +33,11 @@ impl Token {
     pub fn token_type(&self) -> TokenType {
         self.token_type
     }
+
+    // the value a number or string token carries, Nil for everything else
+    pub fn literal(&self) -> &Literal {
+        &self.literal
+    }
 }
 
 impl fmt::Display for Token {
