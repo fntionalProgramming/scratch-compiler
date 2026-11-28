@@ -1,6 +1,7 @@
 use crate::token::{self, Token};
 use crate::token_types::{self, TokenType};
 use crate::ast_printer::*;
+use crate::literal::Literal;
 // -----------------------------------------
 //             PARSER 
 // -----------------------------------------
@@ -16,6 +17,33 @@ use crate::ast_printer::*;
 //                | primary ;
 // primary        → NUMBER | STRING | "true" | "false" | "nil"
 //                | "(" expression ")" ;
+
+
+// shortcuts for building nodes, so the parser doesn't spell out the struct and Box::new each time.
+// they take Expr instead of Box<Expr> and do the boxing here
+impl Expr {
+    pub fn binary(left: Expr, operator: Token, right: Expr) -> Expr {
+        Expr::Binary(Binary {
+            left: Box::new(left),
+            operator,
+            right: Box::new(right),
+        })
+    }
+    pub fn unary(operator: Token, right: Expr) -> Expr {
+        Expr::Unary(Unary {
+            oeprator: operator,
+            right: Box::new(right),
+        })
+    }
+    pub fn grouping(middle: Expr) -> Expr {
+        Expr::Grouping(Grouping {
+            middle: Box::new(middle),
+        })
+    }
+    pub fn literal(value: Literal) -> Expr {
+        Expr::Literal(value)
+    }
+}
 
 struct Parser<'a> {
     tokens: &'a [Token],
